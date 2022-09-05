@@ -1,0 +1,3 @@
+[submodule "ssl_select"]
+	path = ssl_select
+	url = https://github.com/saurontech/ssl_select.git
