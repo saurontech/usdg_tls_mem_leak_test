@@ -1,11 +1,11 @@
-all: client server
-ssl_select:
+all: __ssl_select client server
+__ssl_select:
 	git submodule update --init --recursive
 
-client: client.c ./ssl_select/ssl_select.c ssl_select
+client: client.c ./ssl_select/ssl_select.c
 	${CC} $^ -o $@ -I ./ssl_select -lssl -lcrypto
 
-server: server.c ./ssl_select/ssl_select.c ssl_select
+server: server.c ./ssl_select/ssl_select.c
 	${CC} $^ -o $@ -I ./ssl_select -lssl -lcrypto -lpthread
 
 clean:
