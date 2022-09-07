@@ -31,6 +31,8 @@
 
 #include "ssl_select.h"
 
+char txbuf[10240];
+
 
 void * server_func(void * input)
 {
@@ -47,15 +49,38 @@ void * server_func(void * input)
 		free(ssl);
 		return 0;
 	}
+	int firstRun = 1;
+	int rxlen = 0;
 
 	do{
-
-		if(ssl_recv_simple(ssl, rxbuf, sizeof(rxbuf), 1000, &ssl_errno) < 0){
+		int len = ssl_recv_simple(ssl, rxbuf, sizeof(rxbuf), 3000, &ssl_errno);
+		if( len < 0){
 			ssl_errno_str(ssl, ssl_errno, errstr, sizeof(errstr));
 			printf("recv failed %s\n", errstr);
+			if(!firstRun){
+				break;
+			}	
+			firstRun = 0;
+		}else if(len == 0){
+			printf("socket closed\n");
+			break;
+		}else{
+			rxlen += len;
+			printf("recv(%d)\n", rxlen);
+			if(rxlen < sizeof(txbuf)){
+				
+				continue;
+			}
+		}
+		len = ssl_send_simple(ssl, txbuf, sizeof(txbuf), 3000, &ssl_errno);
+		if( len < 0){
+			ssl_errno_str(ssl, ssl_errno, errstr, sizeof(errstr));
+			printf("write failed %s\n", errstr);
 			break;
 		}
-
+		printf("tx %d", len);
+		rxlen = 0;
+		
 	}while(1);
 
 	__set_block(ssl->sk);
@@ -82,7 +107,7 @@ int main(int argc, char * argv[])
 
 	//printf("ssl ctx %p\n", ssl->ctx);
 
-	char txbuf[10240];
+	
 	char rxbuf[10240];
 	for(int i; i < sizeof(txbuf); i++){
 		txbuf[i] = i % 256;
@@ -109,21 +134,10 @@ int main(int argc, char * argv[])
 		int len;
 		ssl_info * ssl = sslinfo_alloc();
 
-		//ssl->ctx = initialize_ctx(argv[2], argv[3], 0, 0/*&_pwddata*/);
 		ssl->ctx = ctx;
 
 		ssl->ssl = SSL_new(ssl->ctx);
-
-		/*ssl->sk = socket(AF_INET, SOCK_STREAM, 0);
-		printf("socket %d\n", ssl->sk);
-		printf("connect to %s:%d\n", argv[1], port);
-		saddr.sin_family = AF_INET;
-		saddr.sin_addr.s_addr = inet_addr(argv[1]);
-		saddr.sin_port = htons(port);
-		if (connect(ssl->sk, (struct sockaddr*)&saddr, sizeof(saddr)) != 0) {
-			printf("connect error\n");
-			return 0;
-		}*/
+		
 		printf("ready to accept\n");
 		ssl->sk = accept(server, (struct sockaddr *)&peeraddr, &len);
 
@@ -137,34 +151,8 @@ int main(int argc, char * argv[])
 		pthread_t tid;
 		pthread_create(&tid, 0, server_func, ssl);
 
-		/*if(ssl_connect_simple(ssl, 1000, &ssl_errno) != 1){
-			char ssl_errstr[256];
-
-			printf("ssl_connect_simple_fail\n");
-			ssl_errno_str(ssl, ssl_errno,
-					ssl_errstr, sizeof(ssl_errstr));
-			return 0;
-		}
-		
-		int _errno;
-		int txlen;
-		txlen = ssl_send_simple(ssl, txbuf, sizeof(txbuf), 10, &_errno);
-		int rxlen = 0;
-		struct timeval to;
-		to.tv_sec = 10;
-		to.tv_usec = 0;
-		do{
-			printf("ready to recv %d|%d\n", rxlen, txlen);
-			rxlen += ssl_recv_simple_tv(ssl, rxbuf, sizeof(rxbuf), &to, &_errno);
-		}while(timerisset(&to) || rxlen == txlen);
-		
-		__set_block(ssl->sk);
-		SSL_shutdown(ssl->ssl);
-		SSL_free(ssl->ssl);
-		close(ssl->sk);*/
 
 	}while(1);
 
-	//sleep(1000);
 	return 0;
 }
