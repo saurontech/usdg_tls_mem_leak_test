@@ -109,27 +109,31 @@ int main(int argc, char * argv[])
 		zero.tv_usec = 0;
 		need_select = 0;
 		txlen = ssl_send_direct(ssl, &txbuf[txoffset], 10240 - txoffset, &_errno);
-		if(txlen <= 0 && txlen != SSL_OPS_SELECT ){
-			printf("send failed\n");
-			return 0;
-		}if(txlen == SSL_OPS_SELECT){
+		if(txlen == SSL_OPS_SELECT){
 			need_select = 1;
+		}else if(txlen <= 0){
+			char errstr[1024];
+			ssl_errno_str(ssl, _errno, errstr, sizeof(errstr));
+			printf("send error:%s\n", errstr);
+			return 0;
 		}else{
 			txoffset += txlen;
-			txoffset %= 256;
+			//txoffset %= 256;
+			txoffset &= 0xff;
 			total_tx += txlen;
 		}
 
 		rxlen = ssl_recv_direct(ssl, rxbuf, sizeof(rxbuf), &_errno);
-		if(rxlen <= 0 && rxlen != SSL_OPS_SELECT){
-			printf("recv failed\n");
-			return 0;
-		}else if(rxlen == SSL_OPS_SELECT){
+		if(rxlen == SSL_OPS_SELECT){
 			need_select = 1;
+		}else if(rxlen <= 0){
+			char errstr[1024];
+			ssl_errno_str(ssl, _errno, errstr, sizeof(errstr));
+			printf("recv error:%s\n", errstr);
+			return 0;
 		}else{
 			total_rx  += rxlen;
 			for(int i = 0; i < rxlen; i++){
-				//printf("[%d]:%hhx ", i, rxbuf[i]);
 				if(rxbuf[i] != (unsigned char)(tmp + i)){
 					printf("rx data error i = %d data %hhx tmp %hhx",
 					i, rxbuf[i], tmp);
@@ -137,18 +141,14 @@ int main(int argc, char * argv[])
 					return 0;
 				}
 			}
-			//printf("\n");
 			tmp = (rxbuf[(rxlen -1)]) + 1;
-			//printf("rxlne = %d rxbuf = %hhx tmp = %hhx\n", rxlen, rxbuf[(rxlen -1)], tmp);
 		}
-		/*printf("txlen %d txoff %d rxlen %d tmp %hhx need select %d\n",
-			txlen, txoffset, rxlen, tmp, need_select);*/
 
 		if(need_select){
 			fd_set rfds, wfds;
 			struct timeval * tv;
+
 			if(SSL_pending(ssl->ssl)){
-				//printf("pending rx data\n");
 				tv = &zero;
 			}else{
 				tv = &to;
