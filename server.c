@@ -67,10 +67,10 @@ void * server_func(void * input)
 		}else{
 			rxlen += len;
 			printf("recv(%d)\n", rxlen);
-			if(rxlen < sizeof(txbuf)){
-				
+			if(rxlen < sizeof(txbuf)){	
 				continue;
 			}
+			break;
 		}
 		len = ssl_send_simple(ssl, txbuf, sizeof(txbuf), 3000, &ssl_errno);
 		if( len < 0){
