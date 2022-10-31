@@ -108,7 +108,6 @@ int main(int argc, char * argv[])
 	//printf("ssl ctx %p\n", ssl->ctx);
 
 	
-	char rxbuf[10240];
 	for(int i; i < sizeof(txbuf); i++){
 		txbuf[i] = i % 256;
 	}
